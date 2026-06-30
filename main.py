@@ -1,4 +1,7 @@
 from datetime import datetime, timezone
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import json
+import os
 
 def convertFromFormat1(jsonObject):
     locationParts = jsonObject["location"].split("/")
@@ -112,5 +115,29 @@ def run_tests():
     
     print("All tests passed")
 
+class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.end_headers()
+        
+        # Run tests to verify they pass and return the status
+        try:
+            run_tests()
+            response = {"status": "success", "message": "All tests passed"}
+        except AssertionError as e:
+            response = {"status": "failed", "message": str(e)}
+        except Exception as e:
+            response = {"status": "error", "message": str(e)}
+            
+        self.wfile.write(json.dumps(response).encode('utf-8'))
+
 if __name__ == "__main__":
+    # Run tests on local startup
     run_tests()
+    
+    # Start web server for Replit Deployment
+    port = int(os.environ.get("PORT", 8080))
+    server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
+    print(f"Server starting on port {port}...")
+    server.serve_forever()
